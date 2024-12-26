@@ -38,11 +38,11 @@ To make it flexible it is using the luma libraries for display handling, and PIL
  - Idle movements (smooth position transitions). (ongoing)
  - Eye blinking with adjustable speed and synchronization.
  - Eye closing and opening animations.
- - Expressive face changes (e.g., happy, angry, tired). (ongoing)
+ - Expressive face changes (e.g., happy, angry, tired).
  - Eye "look" animations in all directions.
-  - Add or modify animations in the script for new behaviors or expressions.
+ - Add or modify animations in the script for new behaviors or expressions.
 
-  *Wakeup Animation*: 
+*Wakeup Animation*: 
   - A sequence of opening and closing animations to simulate waking up.
 
 *Curious Mode*: 

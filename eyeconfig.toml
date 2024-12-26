@@ -114,12 +114,12 @@ def get_device(config):
             spi_params = screen["spi"]
             gpio_params = screen.get("gpio", {})
             serial = spi(
-                port=spi_params.get("spi_port", 0),
-                device=spi_params.get("spi_device", 0),
+                port=spi_params.get("spi_port"),
+                device=spi_params.get("spi_device"),
                 gpio_DC=gpio_params.get("gpio_data_command"),
                 gpio_RST=gpio_params.get("gpio_reset"),
                 gpio_backlight=gpio_params.get("gpio_backlight"),
-                bus_speed_hz=spi_params.get("spi_bus_speed", 8000000),
+                bus_speed_hz=spi_params.get("spi_bus_speed"),
             )
         else:
             raise ValueError(f"Unsupported interface type: {screen['interface']}")
@@ -204,7 +204,7 @@ def draw_eyes(device, config):
 
         # Apply curious effect dynamically
         if current_curious:
-            max_increase = 0.4  # Max increase by 40%
+            max_increase = 0.2  # Max increase by 40%
             scale_factor = max_increase / (config["screen"]["width"] // 2)
             if current_offset_x < 0:  # Moving left
                 eye_width_left += int(scale_factor * abs(current_offset_x) * left_eye["width"])
