@@ -19,7 +19,7 @@ logging.basicConfig(
 DEFAULT_SCREEN_CONFIG = {
     "screen": {
         "type": "oled",
-        "driver": "ssd11306",
+        "driver": "ssd1306",
         "width": 128,
         "height": 64,
         "rotate": 0,
@@ -240,7 +240,7 @@ def draw_eyes(device, config):
             device.height // 2 - eye_height_right // 2 + current_offset_y,
             device.width // 2 + eye_width_right + distance // 2 + current_offset_x,
             device.height // 2 + eye_height_right // 2 + current_offset_y,
-        # )
+        )
         # logging.debug(f"Left eye coords: {left_eye_coords}, Right eye coords: {right_eye_coords}")
 
         # Draw the eyes draw.rounded_rectangle: width could be added for outline thickness
@@ -297,6 +297,7 @@ def change_face(device, config, new_face=None):
     global current_face, current_closed
     global eyelid_top_inner_left_height, eyelid_top_outer_left_height, eyelid_bottom_left_height
     global eyelid_top_inner_right_height, eyelid_top_outer_right_height, eyelid_bottom_right_height
+    global current_eye_width_left, current_eye_width_right, current_eye_height_left, current_eye_height_right
 
     if new_face is None:
         new_face = current_face
@@ -309,27 +310,27 @@ def change_face(device, config, new_face=None):
         target_eyelid_heights = {
             "top_inner_left": 0,
             "top_outer_left": 0,
-            "bottom_left": config["eye"]["left"]["height"] // 2,
+            "bottom_left": current_eye_height_left // 2,
             "top_inner_right": 0,
             "top_outer_right": 0,
-            "bottom_right": config["eye"]["right"]["height"] // 2,
+            "bottom_right": current_eye_height_right // 2,
         }
     elif new_face == "angry":
         target_eyelid_heights = {
-            "top_inner_left": config["eye"]["left"]["height"] // 2,
+            "top_inner_left": current_eye_height_left // 2,
             "top_outer_left": 0,
             "bottom_left": 0,
-            "top_inner_right": config["eye"]["right"]["height"] // 2,
+            "top_inner_right": current_eye_height_right // 2,
             "top_outer_right": 0,
             "bottom_right": 0,
         }
     elif new_face == "tired":
         target_eyelid_heights = {
             "top_inner_left": 0,
-            "top_outer_left": config["eye"]["left"]["height"] // 2,
+            "top_outer_left": current_eye_height_left // 2,
             "bottom_left": 0,
             "top_inner_right": 0,
-            "top_outer_right": config["eye"]["right"]["height"] // 2,
+            "top_outer_right": current_eye_height_right // 2,
             "bottom_right": 0,
         }
     else:
@@ -397,7 +398,7 @@ def get_constraints(config, device):
 
     # Apply curious effect dynamically
     if current_curious:
-        max_increase = 0.4  # Max increase by 40%
+        max_increase = 0.2  # Max increase by 40%
         eye_width_left = int(eye_width_left * (1 + max_increase))
         eye_width_right = int(eye_width_right * (1 + max_increase))
         eye_height_left = int(eye_height_left * (1 + max_increase))
@@ -486,20 +487,20 @@ def close_eyes(device, config, eye=None, speed="medium"):
     movement_speed = {"fast": 4, "medium": 2, "slow": 1}.get(speed, 4)
     while True:
         if eye in ["both", "left"]:
-            current_eye_height_left = max(1, current_eye_height_left - movement_speed)
+            current_eye_height_left = max(2, current_eye_height_left - movement_speed)
         if eye in ["both", "right"]:
-            current_eye_height_right = max(1, current_eye_height_right - movement_speed)
+            current_eye_height_right = max(2, current_eye_height_right - movement_speed)
 
         # Break when the eyes are fully closed
-        if (current_eye_height_left <= 1 and eye in ["both", "left"]) and (
-            current_eye_height_right <= 1 and eye in ["both", "right"]
+        if (current_eye_height_left <= 2 and eye in ["both", "left"]) and (
+            current_eye_height_right <= 2 and eye in ["both", "right"]
         ):
             current_closed = "both"  # Update state to closed
             break
-        elif current_eye_height_left <= 1 and eye in ["both", "left"]:
+        elif current_eye_height_left <= 2 and eye in ["left"]:
             current_closed = "left"  # Update state to closed
             break
-        elif current_eye_height_right <= 1 and eye in ["both", "right"]:
+        elif current_eye_height_right <= 2 and eye in ["right"]:
             current_closed = "right"  # Update state to closed
             break
 
@@ -518,14 +519,14 @@ def open_eyes(device, config, eye=None, speed="medium"):
 
     # Ensure blink heights are initialized to their closed state
     if current_closed == "both":
-        current_eye_height_left = 1
-        current_eye_height_right = 1
+        current_eye_height_left = 2
+        current_eye_height_right = 2
     elif current_closed == "left":
-        current_eye_height_left = 1
+        current_eye_height_left = 2
         current_eye_height_right = right_eye_height_orig
     elif current_closed == "right":
         current_eye_height_left = left_eye_height_orig
-        current_eye_height_right = 1
+        current_eye_height_right = 2
     else:
         # If eyes are already open, no need for animation
         logging.info("Eyes are already open. Skipping opening animation.")
@@ -555,6 +556,10 @@ def open_eyes(device, config, eye=None, speed="medium"):
 
         time.sleep(1 / config["render"]["fps"])  # Control the frame rate
         
+def blink_eyes(device, config, eye="both", speed="fast"):
+    close_eyes(device, config, eye=eye, speed=speed)
+    open_eyes(device, config, eye=eye, speed=speed)
+        
 def main():
     # Load screen and render configurations
     screen_config = load_config("screenconfig.toml", DEFAULT_SCREEN_CONFIG)
@@ -571,38 +576,69 @@ def main():
 
     # Start the draw_eyes loop in a separate thread
     threading.Thread(target=draw_eyes, args=(device, config)).start()
+    change_face(device, config)
+    time.sleep(2)
+
+    # Test blinking
+    logging.info(f"Starting main loop to test blinking")
+    blink_eyes(device, config)
+    time.sleep(3)
+    blink_eyes(device, config, eye="left", speed="medium")
+    time.sleep(3)
+    blink_eyes(device, config, eye="right", speed="slow")
+    time.sleep(3)
 
     # Test eye closing and opening
-    logging.info(f"Starting main loop to test eye closing and opening")
-    change_face(device, config)
-    time.sleep(3)
-    close_eyes(device, config, eye="both", speed="slow")
-    time.sleep(3)
-    open_eyes(device, config, eye="both", speed="slow")
-    time.sleep(3)
-    close_eyes(device, config, eye="both", speed="slow")
-    time.sleep(3)
-    open_eyes(device, config, eye="both", speed="slow")
-    time.sleep(3)
+    # logging.info(f"Starting main loop to test eye closing and opening")
+    # time.sleep(3)
+    # close_eyes(device, config, eye="both", speed="slow")
+    # time.sleep(3)
+    # open_eyes(device, config, eye="both", speed="slow")
+    # time.sleep(3)
+    # close_eyes(device, config, eye="left", speed="slow")
+    # time.sleep(3)
+    # blink_eyes(device, config, eye="left", speed="slow")
+    # time.sleep(3)
+    # close_eyes(device, config, eye="right", speed="slow")
+    # time.sleep(3)
+    # blink_eyes(device, config, eye="right", speed="slow")
+    # time.sleep(3)
 
     # Main loop to test face change animation
     logging.info(f"Starting main loop to test face change animation")
-    # change_face(device, config)
+    curious_mode(device, config)
     time.sleep(2)
+    look(device, config, direction="TR", speed="fast")
     change_face(device, config, new_face="happy")
+    blink_eyes(device, config)
     time.sleep(2)
+    look(device, config, direction="BL", speed="medium")
     change_face(device, config, new_face="angry")
+    blink_eyes(device, config)
     time.sleep(2)
+    look(device, config, direction="T", speed="fast")
     change_face(device, config, new_face="tired")
     time.sleep(2)
+    time.sleep(2)
+    look(device, config, direction="TR", speed="fast")
+    change_face(device, config, new_face="happy")
+    blink_eyes(device, config)
+    time.sleep(2)
+    look(device, config, direction="BL", speed="medium")
+    change_face(device, config, new_face="angry")
+    blink_eyes(device, config)
+    time.sleep(2)
+    look(device, config, direction="T", speed="fast")
+    change_face(device, config, new_face="tired")
 
     # Main loop to test look animation with curious mode on
     logging.info(f"Starting main loop to test look animation with curious mode on")
-    curious_mode(device, config)
     look(device, config, direction="TL", speed="fast")
     time.sleep(1)
     look(device, config, direction="T", speed="fast")
+    blink_eyes(device, config)
     time.sleep(1)
+    blink_eyes(device, config)
     look(device, config, direction="TR", speed="fast")
     time.sleep(1)
     look(device, config, direction="L", speed="medium")
