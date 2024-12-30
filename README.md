@@ -10,17 +10,17 @@ To make it flexible it is using the luma libraries for display handling, and PIL
   - SSD1306 driver is tested and working with 128x64 and 128x32 screens, SH1107 driver is tested and working with 128x128 screen
   - Default eye and display settings are loaded from the script, but can be changed with eye.config.toml and screenconfig.toml.
   - Predefined faces with "eyelids" to display more emotions (angry, tired, happy).
+  - Fluid animation when changing faces (eyelid movement), and turning on/off curious mode (eye size). 
   - Eye movement with look commands to cardinal directions (C,T,R,B,L and diagonals) and predefined speeds (slow, medium, fast).
   - Blinking and eye closing/openng animation with predefined blink speeds (slow, medium, fast) and option for eyes (both, left, right).
   - Curious mode, where the outer eye is 40% larger, while the inner is 40% smaller than the default.
+  - Idle mode with autoblinker and random movements.
   - **Pimoroni Pan-Tilt hat support to add head movement that follows the eye position.**
 
 **Future plan:**
   - Matching feature set with the arduino library.
   - Display support for all displays in the luma.oled/luma.lcd library. Predefined screen config files for popular screens.
-  - Fluid animation when changing faces (eyelid movement), and turning on/off curious mode (eye size). (Adding threading to have simultaneous move/blink routines for more complex animations)
   - Fix the get_constraints to calculate with eye size changes during curious mode.
-  - Idle mode with autoblinker and random movements.
   - Adding animations like wake_up, sleep etc. to match pwnagotchi faces. (wakeup is already implemented to the main test loop)
   - Adding values for happiness/angriness/tiredness to draw eyelids proportionally to these values.
   - Eyeconfig randomizer. If the eyeconfig is not available for first run, the paramaters are choosen randomly or based on a seed like the pwnagotchis RSA-key (regarding the screen sizes to avoid extreme values), this way all pwnys could have different faces, but still could be edited after the first run.
@@ -28,33 +28,30 @@ To make it flexible it is using the luma libraries for display handling, and PIL
 **Features:**
 
 *Configurable Screen Parameters:* 
- - Supports different OLED and LCD types (ssd1306, st7789, etc.) with I2C and SPI interfaces.
- - Default settings are defined in the script.
+ - Supports different OLED and LCD types (ssd1306, st7789, etc.) with I2C and SPI interfaces. **WORK IN PROGRESS**
+ - Default settings are defined in the script. (SSD1306, 128x64, 0x3C, 32x32 eyes with 8 pixel roundness)
  - External configuration files (screenconfig.toml, eyeconfig.toml) can override defaults.
-  - screenconfig.toml: Defines screen settings, including type, driver, resolution, and interface.
-  - eyeconfig.toml: Defines eye parameters such as size, roundness, and distance. For color screens eye and background color could be set up as well.
+  - screenconfig.toml: Defines screen settings, including type, driver, resolution, and interface, also the pantilt can be enabled there.
+  - eyeconfig.toml: Defines eye parameters such as size, roundness, and distance. For color screens eye and background color will be set up here as well.
+
+*Debugging and Logging:* ***TURNED OFF MOST OF IT FOR NOW***
+ - Comprehensive logging for easy debugging and performance analysis.
+ Enable or adjust logging by modifying the logging.basicConfig call at the start of the script. Logs include debug information about configuration, device initialization, and 
 
 *Dynamic Eye Animations:*
- - Idle movements (smooth position transitions). (ongoing)
+ - Idle movements (smooth position transitions).
  - Eye blinking with adjustable speed and synchronization.
  - Eye closing and opening animations.
  - Expressive face changes (e.g., happy, angry, tired).
  - Eye "look" animations in all directions.
+ - Eye "shake" animations horizontally, vertycally and random
  - Add or modify animations in the script for new behaviors or expressions.
-
-*Wakeup Animation*: 
-  - A sequence of opening and closing animations to simulate waking up.
 
 *Curious Mode*: 
  - Adjusts the eye shape dynamically based on movement.
 
-*Flexible Configuration:*
- - Screen dimensions, driver settings, and interfaces.
- - Eye dimensions, roundness, and distance between the eyes.
-
-*Debugging and Logging:* 
- - Comprehensive logging for easy debugging and performance analysis.
- Enable or adjust logging by modifying the logging.basicConfig call at the start of the script. Logs include debug information about configuration, device initialization, and animation states.
+*Wakeup Animation*: 
+  - A sequence of opening and closing animations to simulate waking up.animation states.
 
 
 Available Animation Commands and Parameters
@@ -111,7 +108,7 @@ config: Configuration dictionary.
 
 **Prerequisites and installation**
 
-**Don't follow this, these are basically notes for myself for now!!**
+**Don't follow this to the point, these are basically notes for myself for now!!**
 
 Python 3.7 or later
 luma.core, luma.oled and luma.lcd
@@ -161,5 +158,6 @@ https://thepihut.com/products/break-away-0-1-36-pin-strip-right-angle-male-heade
 *And all of it is on a pi3A+ with the geekworm case*
 https://geekworm.com/products/p88?srsltid=AfmBOopiZOh1NuZKwYpvqdJRQvj6jh4go5El5dudx6dtSsQ94RDZkZkV
 
-License
-This project is open-source. Feel free to modify and adapt it to your needs.
+## License
+
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the [LICENSE](LICENSE) file for details.

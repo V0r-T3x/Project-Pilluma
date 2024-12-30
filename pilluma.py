@@ -1,3 +1,18 @@
+"""
+This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License.
+To view a copy of this license, visit http://creativecommons.org/licenses/by-nc/4.0/.
+
+You are free to:
+- Share: copy and redistribute the material in any medium or format
+- Adapt: remix, transform, and build upon the material
+
+Under the following terms:
+- Attribution: You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+- NonCommercial: You may not use the material for commercial purposes.
+
+No additional restrictions: You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+"""
+
 import logging
 import sys
 import toml
@@ -169,6 +184,13 @@ def get_device(config):
         raise
 
 def draw_eyes(device, config):
+    """
+    Draws the eyes on the OLED display based on the current state and offsets.
+    This function runs in a loop and updates the display at the configured frame rate.
+
+    :param device: The display device.
+    :param config: Configuration dictionary.
+    """
     global current_bg_color, current_eye_color, current_face, current_curious, current_closed, current_offset_x, current_offset_y
     global eyelid_top_inner_left_height, eyelid_top_outer_left_height, eyelid_bottom_left_height
     global eyelid_top_inner_right_height, eyelid_top_outer_right_height, eyelid_bottom_right_height
@@ -624,6 +646,12 @@ def blink_eyes(device, config, eye="both", speed="fast"):
     open_eyes(device, config, eye=eye, speed=speed)
         
 def pantilt(device, config):
+    """
+    Controls the PanTilt HAT to move the display physically based on the current eye offsets.
+
+    :param device: The display device.
+    :param config: Configuration dictionary.
+    """
     global current_offset_x, current_offset_y
 
     # Get movement constraints
@@ -647,9 +675,10 @@ def pantilt(device, config):
 
 def idle(device, config):
     """
-    Idle function to render the eyes and add random behaviors.
-    :param device: The display device
-    :param config: Configuration dictionary
+    Idle function to render the eyes and add random behaviors such as blinking, looking around, and changing faces.
+
+    :param device: The display device.
+    :param config: Configuration dictionary.
     """
     global current_offset_x, current_offset_y
 
@@ -663,6 +692,9 @@ def idle(device, config):
     faces = ["happy", "angry", "tired", "curious"]
 
     def blink():
+        """
+        Blinks the eyes at random intervals with random speeds.
+        """
         while True:
             blink_interval = random.uniform(3, 5)
             blink_speed = random.choice(speeds)
@@ -670,6 +702,9 @@ def idle(device, config):
             blink_eyes(device, config, eye="both", speed=blink_speed)
 
     def look_around():
+        """
+        Moves the eyes to random positions at random intervals with random speeds.
+        """
         while True:
             look_interval = random.uniform(5, 10)
             random_x = random.randint(min_x_offset, max_x_offset)
@@ -679,6 +714,9 @@ def idle(device, config):
             look(device, config, direction=f"{random_x},{random_y}", speed=look_speed)
 
     def change_face_randomly():
+        """
+        Changes the face to a random expression at random intervals.
+        """
         while True:
             face_change_interval = random.uniform(15, 30)
             new_face = random.choice(faces)
@@ -698,6 +736,13 @@ def start_closed(device, config):
     threading.Thread(target=draw_eyes, args=(device, config)).start()
 
 def wake_up(device, config, eye="both"):
+    """
+    Performs the wake-up animation sequence, starting with closed eyes and transitioning to open eyes with a tired face.
+
+    :param device: The display device.
+    :param config: Configuration dictionary.
+    :param eye: Which eye to animate ("left", "right", "both").
+    """
     global current_closed
     current_closed="both"
     # Change face to tired
@@ -714,6 +759,9 @@ def wake_up(device, config, eye="both"):
     change_face(device, config, new_face="default")
 
 def main():
+    """
+    Main function to load configurations, initialize the display device, and start the necessary threads and animations.
+    """
     # Load screen and render configurations
     screen_config = load_config("screenconfig.toml", DEFAULT_SCREEN_CONFIG)
     render_config = load_config("eyeconfig.toml", DEFAULT_RENDER_CONFIG)
