@@ -4,10 +4,38 @@ import toml
 import random
 import time
 import threading
+import pantilthat
 from PIL import Image, ImageDraw
 from luma.core.interface.serial import i2c, spi
 import luma.oled.device as oled
 import luma.lcd.device as lcd
+
+# Global variable to track and pass on to functions
+current_bg_color = "black"
+current_eye_color = "white"
+current_curious = False
+
+# Global variables for x/y offset for look based animations
+current_offset_x = 0
+current_offset_y = 0
+
+# Global variables for eyelid heights face changes
+current_face = "default"
+eyelid_top_inner_left_height = 0
+eyelid_top_outer_left_height = 0
+eyelid_bottom_left_height = 0
+eyelid_top_inner_right_height = 0
+eyelid_top_outer_right_height = 0
+eyelid_bottom_right_height = 0
+
+# Initialize global variables for eye heights close/open/blink
+current_closed = None
+current_eye_height_left = 0
+current_eye_height_right = 0
+
+# Servo limits
+servo_limit_x = 45
+servo_limit_y = 45
 
 # Enable debug logging
 logging.basicConfig(
@@ -71,29 +99,29 @@ def load_config(file_path, default_config):
         logging.error(f"Error reading configuration from {file_path}: {e}")
         sys.exit(1)
 
-def validate_screen_config(config):
-    """
-    Validate the screen configuration to ensure required fields are present.
-    :param config: Screen configuration dictionary
-    """
-    try:
-        screen = config["screen"]
-        required_fields = ["type", "driver", "width", "height", "interface"]
+# def validate_screen_config(config):
+    # """
+    # Validate the screen configuration to ensure required fields are present.
+    # :param config: Screen configuration dictionary
+    # """
+    # try:
+        # screen = config["screen"]
+        # required_fields = ["type", "driver", "width", "height", "interface"]
 
-        for field in required_fields:
-            if field not in screen:
-                raise ValueError(f"Missing required field: '{field}' in screen configuration.")
+        # for field in required_fields:
+            # if field not in screen:
+                # raise ValueError(f"Missing required field: '{field}' in screen configuration.")
 
-        if screen["interface"] == "i2c" and "i2c" not in screen:
-            raise ValueError("Missing 'i2c' section for I2C interface.")
-        if screen["interface"] == "spi" and "spi" not in screen:
-            raise ValueError("Missing 'spi' section for SPI interface.")
-    except KeyError as e:
-        logging.error(f"Configuration validation error: Missing key {e}")
-        sys.exit(1)
-    except ValueError as e:
-        logging.error(f"Configuration validation error: {e}")
-        sys.exit(1)
+        # if screen["interface"] == "i2c" and "i2c" not in screen:
+            # raise ValueError("Missing 'i2c' section for I2C interface.")
+        # if screen["interface"] == "spi" and "spi" not in screen:
+            # raise ValueError("Missing 'spi' section for SPI interface.")
+    # except KeyError as e:
+        # logging.error(f"Configuration validation error: Missing key {e}")
+        # sys.exit(1)
+    # except ValueError as e:
+        # logging.error(f"Configuration validation error: {e}")
+        # sys.exit(1)
 
 def get_device(config):
     try:
@@ -140,34 +168,13 @@ def get_device(config):
         logging.error(f"Error initializing device: {e}")
         raise
 
-# Global variable to track and pass on to functions
-current_bg_color = "black"
-current_eye_color = "white"
-current_face = "default"
-current_curious = False
-current_closed = None
-current_offset_x = 0
-current_offset_y = 0
-
-# Global variables for eyelid heights
-eyelid_top_inner_left_height = 0
-eyelid_top_outer_left_height = 0
-eyelid_bottom_left_height = 0
-eyelid_top_inner_right_height = 0
-eyelid_top_outer_right_height = 0
-eyelid_bottom_right_height = 0
-
-# Initialize global variables for eye heights
-current_eye_height_left = 0
-current_eye_height_right = 0
-
 def draw_eyes(device, config):
     global current_bg_color, current_eye_color, current_face, current_curious, current_closed, current_offset_x, current_offset_y
     global eyelid_top_inner_left_height, eyelid_top_outer_left_height, eyelid_bottom_left_height
     global eyelid_top_inner_right_height, eyelid_top_outer_right_height, eyelid_bottom_right_height
     global current_eye_width_left, current_eye_width_right, current_eye_height_left, current_eye_height_right
-
-    # Ensure eyes are open by default if current_closed is None
+        
+    # Ensure eyes are open by default if current_closed is None and closed if set it when loading        
     if current_closed is None:
         current_eye_height_left = config["eye"]["left"]["height"]
         current_eye_height_right = config["eye"]["right"]["height"]
@@ -283,8 +290,6 @@ def draw_eyes(device, config):
         # Display the image
         device.display(image)
 
-        # time.sleep(1 / config["render"]["fps"])  # Control the frame rate
-
 def change_face(device, config, new_face=None):
     global current_face, current_closed
     global eyelid_top_inner_left_height, eyelid_top_outer_left_height, eyelid_bottom_left_height
@@ -302,10 +307,10 @@ def change_face(device, config, new_face=None):
         target_eyelid_heights = {
             "top_inner_left": 0,
             "top_outer_left": 0,
-            "bottom_left": config["eye"]["left"]["height"] // 3,
+            "bottom_left": config["eye"]["left"]["height"] // 2,
             "top_inner_right": 0,
             "top_outer_right": 0,
-            "bottom_right": config["eye"]["right"]["height"] // 3,
+            "bottom_right": config["eye"]["right"]["height"] // 2,
         }
     elif new_face == "angry":
         target_eyelid_heights = {
@@ -409,7 +414,7 @@ def get_constraints(config, device):
 
     return min_x_offset, max_x_offset, min_y_offset, max_y_offset
 
-def look(device, config, direction, speed="medium"):
+def look(device, config, direction=None, speed="medium", target_offset_x=None, target_offset_y=None):
     global current_offset_x, current_offset_y
 
     # Get movement constraints
@@ -440,12 +445,25 @@ def look(device, config, direction, speed="medium"):
     elif direction == "BR":
         target_offset_x = max_x_offset
         target_offset_y = max_y_offset
-    else:  # Center
+    elif direction == "C":
         target_offset_x = 0
         target_offset_y = 0
+    else:
+        # Parse custom x-y coordinates from direction string
+        try:
+            target_offset_x, target_offset_y = map(int, direction.split(","))
+        except ValueError:
+            logging.error(f"Invalid direction format: {direction}")
+            return
+
+    # Ensure target offsets are within constraints
+    if target_offset_x is not None:
+        target_offset_x = max(min_x_offset, min(max_x_offset, target_offset_x))
+    if target_offset_y is not None:
+        target_offset_y = max(min_y_offset, min(max_y_offset, target_offset_y))
 
     # Adjust offsets dynamically
-    speed_map = {"slow": 0.5, "medium": 1, "fast": 2}
+    speed_map = {"slow": 1, "medium": 2, "fast": 5}
     adjustment_speed = speed_map.get(speed, 2)  # Default to medium speed
     current_offsets = {
         "x": current_offset_x,
@@ -468,6 +486,40 @@ def look(device, config, direction, speed="medium"):
         current_offset_y = current_offsets["y"]
 
         time.sleep(1 / config["render"]["fps"])  # Control the frame rate
+
+def shake_eyes(device, config, direction="random", speed="fast"):
+    global current_offset_x, current_offset_y
+    """
+    Shake the eyes horizontally, vertically, or randomly by calling the look function.
+    :param device: The display device
+    :param config: Configuration dictionary
+    :param direction: Direction of shaking ("h" for horizontal, "v" for vertical, "random" for random)
+    :param speed: Speed of shaking ("fast", "medium", "slow")
+    """
+    # Get movement constraints
+    min_x_offset, max_x_offset, min_y_offset, max_y_offset = get_constraints(config, device)
+    
+    # Calculate shake limits
+    shake_limit_x = (max_x_offset - min_x_offset) // 3
+    shake_limit_y = (max_y_offset - min_y_offset) // 6
+
+    if direction == "h":
+        look(device, config, direction=f"{-shake_limit_x},{current_offset_y}", speed=speed)
+        look(device, config, direction=f"{shake_limit_x},{current_offset_y}", speed=speed)
+        look(device, config, direction=f"{-shake_limit_x},{current_offset_y}", speed=speed)
+        look(device, config, direction=f"{shake_limit_x},{current_offset_y}", speed=speed)
+        look(device, config, direction=f"0,0", speed=speed)
+    elif direction == "v":
+        look(device, config, direction=f"{current_offset_x},{-shake_limit_y}", speed=speed)
+        look(device, config, direction=f"{current_offset_x},{shake_limit_y}", speed=speed)
+        look(device, config, direction=f"{current_offset_x},{-shake_limit_y}", speed=speed)
+        look(device, config, direction=f"{current_offset_x},{shake_limit_y}", speed=speed)
+        look(device, config, direction=f"0,0", speed=speed)
+    else:  # Random direction within the shake limit
+        for _ in range(10):  # Shake for 10 random directions
+            random_x = random.randint(-shake_limit_x, shake_limit_x)
+            random_y = random.randint(-shake_limit_y, shake_limit_y)
+            look(device, config, direction=f"{random_x},{random_y}", speed=speed)
 
 def close_eyes(device, config, eye=None, speed="medium"):
     global current_closed, current_eye_height_left, current_eye_height_right
@@ -571,124 +623,126 @@ def blink_eyes(device, config, eye="both", speed="fast"):
     close_eyes(device, config, eye=eye, speed=speed)
     open_eyes(device, config, eye=eye, speed=speed)
         
+def pantilt(device, config):
+    global current_offset_x, current_offset_y
+
+    # Get movement constraints
+    min_x_offset, max_x_offset, min_y_offset, max_y_offset = get_constraints(config, device)
+
+    while True:
+        # Calculate proportional servo target values based on current offsets
+        servo_x = (current_offset_x - min_x_offset) / (max_x_offset - min_x_offset) * 2 * servo_limit_x - servo_limit_x
+        servo_y = (current_offset_y - min_y_offset) / (max_y_offset - min_y_offset) * 2 * servo_limit_y - servo_limit_y
+
+        # Clamp the servo values to the limits
+        servo_x = max(-servo_limit_x, min(servo_limit_x, servo_x))
+        servo_y = max(-servo_limit_y, min(servo_limit_y, servo_y))
+
+        # Move the servos
+        pantilthat.pan(servo_x)
+        pantilthat.tilt(servo_y)
+
+        # Control the update rate
+        time.sleep(0.5 / config["render"]["fps"])
+
+def idle(device, config):
+    """
+    Idle function to render the eyes and add random behaviors.
+    :param device: The display device
+    :param config: Configuration dictionary
+    """
+    global current_offset_x, current_offset_y
+
+    # Get movement constraints
+    min_x_offset, max_x_offset, min_y_offset, max_y_offset = get_constraints(config, device)
+
+    # Define possible speeds
+    speeds = ["slow", "medium", "fast"]
+
+    # Define possible faces
+    faces = ["happy", "angry", "tired", "curious"]
+
+    def blink():
+        while True:
+            blink_interval = random.uniform(3, 5)
+            blink_speed = random.choice(speeds)
+            time.sleep(blink_interval)
+            blink_eyes(device, config, eye="both", speed=blink_speed)
+
+    def look_around():
+        while True:
+            look_interval = random.uniform(5, 10)
+            random_x = random.randint(min_x_offset, max_x_offset)
+            random_y = random.randint(min_y_offset, max_y_offset)
+            look_speed = random.choice(speeds)
+            time.sleep(look_interval)
+            look(device, config, direction=f"{random_x},{random_y}", speed=look_speed)
+
+    def change_face_randomly():
+        while True:
+            face_change_interval = random.uniform(15, 30)
+            new_face = random.choice(faces)
+            time.sleep(face_change_interval)
+            change_face(device, config, new_face=new_face)
+    # Start the threads
+    threading.Thread(target=blink).start()
+    threading.Thread(target=look_around).start()
+    threading.Thread(target=change_face_randomly).start()
+
+def start_closed(device, config):
+    global current_closed
+    current_closed="both"
+    close_eyes(device, config, eye="both", speed="slow")
+    # time.sleep(1)
+    # Start the draw_eyes loop in a separate thread with initial state closed
+    threading.Thread(target=draw_eyes, args=(device, config)).start()
+
+def wake_up(device, config, eye="both"):
+    global current_closed
+    current_closed="both"
+    # Change face to tired
+    change_face(device, config, new_face="tired")
+    # Wait for a moment
+    time.sleep(1)
+    # Open eyes at medium speed
+    open_eyes(device, config, eye=eye, speed="slow")
+    # Wait for a moment
+    time.sleep(1)
+    # Blink eyes slowly
+    blink_eyes(device, config, eye=eye, speed="medium")
+    # Change face to default
+    change_face(device, config, new_face="default")
+
 def main():
     # Load screen and render configurations
     screen_config = load_config("screenconfig.toml", DEFAULT_SCREEN_CONFIG)
     render_config = load_config("eyeconfig.toml", DEFAULT_RENDER_CONFIG)
-
     # Merge configurations
     config = {**screen_config, **render_config}
-
     # Initialize the display device
     device = get_device(config)
-
     # Verify device initialization
     logging.info(f"Device initialized: {device}")
-
-    # Start the draw_eyes loop in a separate thread
-    threading.Thread(target=draw_eyes, args=(device, config)).start()
-    change_face(device, config)
-    time.sleep(2)
-
-    # Main loop to test face change animation
-    logging.info(f"Starting main loop to test face change animation")
-    curious_mode(device, config, curious=True)
-    time.sleep(2)
-    look(device, config, direction="TR", speed="fast")
-    change_face(device, config, new_face="happy")
-    # blink_eyes(device, config)
-    time.sleep(2)
-    look(device, config, direction="BL", speed="medium")
-    curious_mode(device, config, curious=False)
+    # Check if pantilt is enabled
+    if config.get("pantilt", {}).get("enabled", False):
+        # Start the pantilt function in a separate thread
+        threading.Thread(target=pantilt, args=(device, config)).start()
+    # Start the draw_eyes loop in a separate thread with initial state closed
+    # threading.Thread(target=draw_eyes, args=(device, config)).start()
+    # Start the idle function
+    logging.info(f"Starting the wakeup animation")
+    start_closed(device, config)
+    wake_up(device, config)
     time.sleep(2)
     curious_mode(device, config, curious=True)
-    change_face(device, config, new_face="angry")
-    curious_mode(device, config, curious=False)
-    time.sleep(2)
-    curious_mode(device, config, curious=True)
-    look(device, config, direction="T", speed="fast")
-    # blink_eyes(device, config)
-    curious_mode(device, config, curious=True)
-    time.sleep(2)
-    look(device, config, direction="TR", speed="fast")
-    change_face(device, config, new_face="happy")
-    blink_eyes(device, config)
-    time.sleep(2)
-    look(device, config, direction="BL", speed="medium")
-    curious_mode(device, config, curious=False)
-    time.sleep(2)
-    curious_mode(device, config, curious=True)
-    change_face(device, config, new_face="angry")
-    curious_mode(device, config, curious=False)
-    time.sleep(2)
-    change_face(device, config, new_face="tired")
-    time.sleep(2)
-    time.sleep(2)
-    look(device, config, direction="TR", speed="fast")
-    change_face(device, config, new_face="happy")
-    blink_eyes(device, config)
-    time.sleep(2)
-    look(device, config, direction="BL", speed="medium")
-    change_face(device, config, new_face="angry")
-    blink_eyes(device, config)
-    time.sleep(2)
-    look(device, config, direction="T", speed="fast")
-    change_face(device, config, new_face="tired")
-
-    # Main loop to test look animation with curious mode on
-    logging.info(f"Starting main loop to test look animation with curious mode on")
-    look(device, config, direction="TL", speed="fast")
-    time.sleep(1)
-    look(device, config, direction="T", speed="fast")
-    blink_eyes(device, config)
-    time.sleep(1)
-    blink_eyes(device, config)
-    look(device, config, direction="TR", speed="fast")
-    blink_eyes(device, config)
-    time.sleep(1)
-    look(device, config, direction="L", speed="medium")
-    time.sleep(1)
-    look(device, config, direction="R", speed="medium")
-    blink_eyes(device, config)
-    blink_eyes(device, config)
-    time.sleep(1)
-    look(device, config, direction="BL", speed="slow")
-    blink_eyes(device, config)
-    time.sleep(1)
-    look(device, config, direction="B", speed="slow")
-    blink_eyes(device, config)
-    time.sleep(1)
-    look(device, config, direction="BR", speed="slow")
-    blink_eyes(device, config)
-    blink_eyes(device, config)
-    time.sleep(1)
-    look(device, config, direction="C", speed="slow")
-    current_curious = False
-
-    # Test blinking
-    logging.info(f"Starting main loop to test blinking")
-    blink_eyes(device, config)
-    time.sleep(3)
-    blink_eyes(device, config, eye="left", speed="medium")
-    time.sleep(3)
-    blink_eyes(device, config, eye="right", speed="slow")
-    time.sleep(3)
-
-    # Test eye closing and opening
-    logging.info(f"Starting main loop to test eye closing and opening")
-    time.sleep(3)
-    close_eyes(device, config, eye="both", speed="slow")
-    time.sleep(3)
-    open_eyes(device, config, eye="both", speed="slow")
-    time.sleep(3)
-    close_eyes(device, config, eye="left", speed="slow")
-    time.sleep(3)
-    blink_eyes(device, config, eye="left", speed="slow")
-    time.sleep(3)
-    close_eyes(device, config, eye="right", speed="slow")
-    time.sleep(3)
-    blink_eyes(device, config, eye="right", speed="slow")
-    time.sleep(3)
+    logging.info(f"Starting the idle animation")
+    idle(device, config)
+    # time.sleep(10)
+    # shake_eyes(device, config, direction="h")
+    # time.sleep(10)
+    # shake_eyes(device, config, direction="v")
+    # time.sleep(10)
+    # shake_eyes(device, config)
 
 if __name__ == "__main__":
     main()

@@ -56,16 +56,67 @@ To make it flexible it is using the luma libraries for display handling, and PIL
  - Comprehensive logging for easy debugging and performance analysis.
  Enable or adjust logging by modifying the logging.basicConfig call at the start of the script. Logs include debug information about configuration, device initialization, and animation states.
 
+
+Available Animation Commands and Parameters
+
+ - blink_eyes(device, config, eye="both", speed="medium")
+Description: Blinks the eyes at a specified speed.
+Parameters:
+device: The display device.
+config: Configuration dictionary.
+eye: Which eye to blink ("left", "right", "both").
+speed: Speed of the blink ("slow", "medium", "fast").
+```python
+blink_eyes(device, config, eye="both", speed="medium")
+```
+ - look(device, config, direction=None, speed="medium", target_offset_x=None, target_offset_y=None)
+Description: Moves the eyes to a specified direction or coordinates.
+Parameters:
+device: The display device.
+config: Configuration dictionary.
+direction: Direction to look ("L", "R", "T", "B", "TL", "TR", "BL", "BR", "C").
+you can use offset coordinates like direction="-20,45" or target offsets
+target_offset_x: X-coordinate for the target position.
+target_offset_y: Y-coordinate for the target position.
+speed: Speed of the movement ("slow", "medium", "fast").
+```python
+look(device, config, direction="L", speed="fast")
+look(device, config, direction="-20,45", speed="medium")
+look(device, config, target_offset_x=-20, target_offset_y=30, speed="slow")
+```
+ - change_face(device, config, new_face="default")
+Description: Changes the face to a specified expression.
+Parameters:
+device: The display device.
+config: Configuration dictionary.
+new_face: The new face expression ("happy", "angry", "tired", "curious", "default").
+```python
+change_face(device, config, new_face="happy")
+```
+ - shake_eyes(device, config, direction="random", speed="fast")
+Description: Shakes the eyes in a specified direction.
+Parameters:
+device: The display device.
+config: Configuration dictionary.
+direction: Direction of shaking ("h" for horizontal, "v" for vertical, "random").
+speed: Speed of shaking ("fast", "medium", "slow").
+```python
+shake_eyes(device, config, direction="h", speed="fast")
+```
+ - pantilt(device, config)
+Description: Controls the PanTilt HAT to move the display physically based on the current eye offsets if it is enabled in the screenconfig.toml.
+Parameters:
+device: The display device.
+config: Configuration dictionary.
+
 **Prerequisites and installation**
 
 **Don't follow this, these are basically notes for myself for now!!**
 
 Python 3.7 or later
-luma.oled and luma.lcd
+luma.core, luma.oled and luma.lcd
 PIL (Python Imaging Library)
-toml
-logging
-threading
+
 
 ```bash
 sudo apt install python3-pip python3-setuptools python3-dev python3-pantilthat
