@@ -1,0 +1,19 @@
+[screen]
+# General screen configuration
+type = "oled"
+driver = "ssd1327"
+width = 128
+height = 96
+rotate = 0
+interface = "spi"
+mode = "RGB"
+[screen.spi]
+# SPI-specific settings
+spi_port = 0
+spi_device = 0
+spi_bus_speed = 40000000
+[screen.gpio]
+# GPIO pin settings for SPI displays
+gpio_data_command = 25
+gpio_chip_select = 8
+gpio_reset = 27

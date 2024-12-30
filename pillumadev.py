@@ -96,31 +96,22 @@ def validate_screen_config(config):
         sys.exit(1)
 
 def get_device(config):
-    """
-    Create and initialize the display device based on the configuration.
-    :param config: Screen configuration dictionary
-    :return: Initialized display device
-    """
     try:
         screen = config["screen"]
-        validate_screen_config(config)
 
-        # Create the serial interface
-        serial = None  # Initialize serial variable
-        if screen["interface"] == "i2c":
-            i2c_address = int(screen["i2c"]["address"], 16)
-            serial = i2c(port=screen["i2c"].get("i2c_port", 1), address=i2c_address)
-        elif screen["interface"] == "spi":
-            spi_params = screen["spi"]
-            gpio_params = screen.get("gpio", {})
+        # Initialize the interface
+        if screen["interface"] == "spi":
             serial = spi(
-                port=spi_params.get("spi_port", 0),
-                device=spi_params.get("spi_device", 0),
-                gpio_DC=gpio_params.get("gpio_data_command"),
-                gpio_RST=gpio_params.get("gpio_reset"),
-                gpio_backlight=gpio_params.get("gpio_backlight"),
-                bus_speed_hz=spi_params.get("spi_bus_speed", 8000000),
+                port=screen["spi"].get("spi_port"),
+                device=screen["spi"].get("spi_device"),
+                gpio_DC=screen["gpio"].get("gpio_data_command"),
+                gpio_RST=screen["gpio"].get("gpio_reset"),
+                gpio_backlight=screen["gpio"].get("gpio_backlight"),
+                gpio_CS=screen["gpio"].get("gpio_chip_select"),
+                bus_speed_hz=screen["spi"].get("spi_bus_speed"),
             )
+        elif screen["interface"] == "i2c":
+            serial = i2c(port=screen["i2c"].get("i2c_port"), address=screen["i2c"].get("address"))
         else:
             raise ValueError(f"Unsupported interface type: {screen['interface']}")
 
@@ -132,17 +123,22 @@ def get_device(config):
             raise ValueError(f"Unsupported driver: {driver_name}")
 
         # Initialize the device
-        device = driver_module(serial, width=screen["width"], height=screen["height"], rotate=screen.get("rotate", 0))
+        device = driver_module(serial, width=screen["width"], height=screen["height"], rotate=screen.get("rotate", 0), mode=screen.get("mode", "1"))
+
+        # Turn on the backlight if gpio_backlight is defined
+        if "gpio" in screen and "gpio_backlight" in screen["gpio"]:
+            device.backlight(True)  # Set to False to turn on the backlight
 
         logging.info(f"Initialized {screen['type']} screen with driver {driver_name}.")
         return device
-        
+
     except ValueError as e:
         logging.error(f"Configuration error: {e}")
-        sys.exit(1)
+        raise
+
     except Exception as e:
-        logging.error(f"Error initializing screen: {e}")
-        sys.exit(1)
+        logging.error(f"Error initializing device: {e}")
+        raise
 
 # Global variable to track and pass on to functions
 current_bg_color = "black"
@@ -287,7 +283,7 @@ def draw_eyes(device, config):
         # Display the image
         device.display(image)
 
-        time.sleep(1 / config["render"]["fps"])  # Control the frame rate
+        # time.sleep(1 / config["render"]["fps"])  # Control the frame rate
 
 def change_face(device, config, new_face=None):
     global current_face, current_closed
@@ -399,7 +395,7 @@ def get_constraints(config, device):
 
     # Apply curious effect dynamically
     if current_curious:
-        max_increase = 0.4  # Max increase by 40%
+        max_increase = 0.2  # Max increase by 40%
         eye_width_left = int(eye_width_left * (1 + max_increase))
         eye_width_right = int(eye_width_right * (1 + max_increase))
         eye_height_left = int(eye_height_left * (1 + max_increase))
@@ -696,3 +692,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

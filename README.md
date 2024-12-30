@@ -76,6 +76,7 @@ sudo python3 setup.py install
 cd~
 git clone https://github.com/rm-hull/luma.oled.git
 cd luma.oled
+pip install -r requirements.txt
 sudo python3 setup.py install
 cd~
 git clone https://github.com/rm-hull/luma.lcd.git
