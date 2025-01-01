@@ -1,0 +1,20 @@
+[screen]
+# General screen configuration
+type = "lcd"              # Screen type: "oled" or "lcd"
+driver = "ili9486"         # Screen driver chip (e.g., ssd1306, ili9341, st7789, etc.)
+width = 320               # Screen width in pixels
+height = 480              # Screen height in pixels
+rotate = 1                # Rotation factor: 0, 90, 180, 270
+interface = "spi"         # Interface type: "i2c" or "spi"
+mode = "RGB"              # Color mode for specific screens (e.g., "1", "RGB", "RGBA")
+[screen.spi]
+# SPI-specific settings
+spi_port = 0              # SPI port number (default: 0)
+spi_device = 0            # SPI device number (default: 0)
+spi_bus_speed = 16000000  # SPI bus speed (Hz)
+[screen.gpio]
+# GPIO pin settings for SPI displays
+gpio_data_command = 24    # GPIO pin for D/C (Data/Command)
+gpio_chip_select = 0      # GPIO pin for CS (Chip Select)
+gpio_reset = 25           # GPIO pin for RESET
+#gpio_backlight = 18       # GPIO pin for BACKLIGHT (if applicable)
